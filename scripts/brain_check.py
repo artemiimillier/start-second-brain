@@ -2,7 +2,7 @@
 """Start Second Brain — проверка базы знаний (только стандартная библиотека Python 3.9+).
 
   python3 brain_check.py inventory <папка>   # режим Б: файлы, дубли, похожие имена, цены
-  python3 brain_check.py check <папка>       # после сборки: ссылки, карта, шапки, входной файл
+  python3 brain_check.py check <папка>       # после сборки: ссылки, карта, шапки, ⚠ и «Ждёт решения», входной файл
 
 Скрипт ничего не меняет в папке, только читает. Код выхода check: 0 — ошибок нет, 1 — есть ошибки.
 """
@@ -19,6 +19,7 @@ ENTRY_FILES = [".hermes.md", "HERMES.md", "AGENTS.override.md", "AGENTS.md", "ag
 SKIP_DIRS = {".git", ".obsidian", "node_modules", "__pycache__", ".trash"}
 SERVICE = {"INDEX.md", "RULES.md", "log.md", "README.md"}
 REQUIRED_FIELDS = ("status", "source", "confirmed_by", "checked")
+WAITING = "## Ждёт решения владельца"
 WIKI_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
 MONEY_RE = re.compile(r"\d[\d\s.,]*\s*(?:₽|руб|р\.|тыс|млн|k\b|к\b|\$|€|usd|eur)", re.I)
 START, END = "<!-- second-brain:start -->", "<!-- second-brain:end -->"
@@ -92,6 +93,19 @@ def strip_code(text):
     return re.sub(r"`[^`\n]*`", "", text)
 
 
+def waiting_section(text):
+    """Строки раздела «Ждёт решения владельца»: от его заголовка до следующего «## »."""
+    out, inside = [], False
+    for line in text.splitlines():
+        if line.strip() == WAITING:
+            inside = True
+        elif inside and line.startswith("## "):
+            break
+        elif inside:
+            out.append(line)
+    return "\n".join(out)
+
+
 def resolve(base, src, target, by_name):
     t = target.strip().rstrip("/")
     for cand in (base / t, base / (t + ".md"), src.parent / t, src.parent / (t + ".md")):
@@ -134,11 +148,16 @@ def check(base):
         if not (base / n).is_file():
             errors.append(f"нет {n}")
     linked_from_index = set()
+    waiting = set()
     if index.is_file():
         for t in WIKI_RE.findall(strip_code(read(index))):
             for cand in (base / t.strip(), base / (t.strip() + ".md")):
                 if cand.is_file():
                     linked_from_index.add(cand.resolve())
+        for t in WIKI_RE.findall(waiting_section(strip_code(read(index)))):
+            for cand in (base / t.strip(), base / (t.strip() + ".md")):
+                if cand.is_file():
+                    waiting.add(cand.resolve())
         if len(read(index)) > 12000:
             warnings.append("INDEX.md длиннее 12000 знаков — похоже на свалку, а не на карту")
     for p in md:
@@ -154,6 +173,8 @@ def check(base):
             continue
         if p.resolve() not in linked_from_index:
             errors.append(f"{r} не упомянут в INDEX.md")
+        if "⚠" in strip_code(text) and p.resolve() not in waiting:
+            errors.append(f"{r}: есть ⚠, но документа нет в INDEX.md → «Ждёт решения владельца»")
         fm = frontmatter(text)
         if fm is None:
             errors.append(f"{r}: нет шапки (status/source/confirmed_by/checked)")

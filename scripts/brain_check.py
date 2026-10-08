@@ -6,6 +6,7 @@
 
 Скрипт ничего не меняет в папке, только читает. Код выхода check: 0 — ошибок нет, 1 — есть ошибки.
 """
+import datetime
 import hashlib
 import re
 import sys
@@ -20,6 +21,7 @@ SKIP_DIRS = {".git", ".obsidian", "node_modules", "__pycache__", ".trash"}
 SERVICE = {"INDEX.md", "RULES.md", "log.md", "README.md"}
 REQUIRED_FIELDS = ("status", "source", "confirmed_by", "checked")
 WAITING = "## Ждёт решения владельца"
+STALE_DAYS = 180
 WIKI_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
 MONEY_RE = re.compile(r"\d[\d\s.,]*\s*(?:₽|руб|р\.|тыс|млн|k\b|к\b|\$|€|usd|eur)", re.I)
 START, END = "<!-- second-brain:start -->", "<!-- second-brain:end -->"
@@ -184,6 +186,14 @@ def check(base):
                 errors.append(f"{r}: в шапке пусто: {', '.join(miss)}")
             if fm.get("status") == "устарел":
                 warnings.append(f"{r}: status=устарел вне archive/")
+            if fm.get("status") == "действующий":
+                try:
+                    checked = datetime.date.fromisoformat(fm.get("checked", ""))
+                except ValueError:
+                    warnings.append(f"{r}: checked не дата ГГГГ-ММ-ДД")
+                else:
+                    if (datetime.date.today() - checked).days > STALE_DAYS:
+                        warnings.append(f"{r}: проверено {fm['checked']}, больше {STALE_DAYS} дней назад — уточнить у владельца")
     blocks = []
     for n in ENTRY_FILES:
         f = base / n

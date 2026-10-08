@@ -190,7 +190,8 @@ def check(base):
                 try:
                     checked = datetime.date.fromisoformat(fm.get("checked", ""))
                 except ValueError:
-                    warnings.append(f"{r}: checked не дата ГГГГ-ММ-ДД")
+                    if fm.get("checked"):
+                        warnings.append(f"{r}: checked не дата ГГГГ-ММ-ДД")
                 else:
                     if (datetime.date.today() - checked).days > STALE_DAYS:
                         warnings.append(f"{r}: проверено {fm['checked']}, больше {STALE_DAYS} дней назад — уточнить у владельца")

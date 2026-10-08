@@ -18,7 +18,7 @@
 | что продаём и почём | [[products/prices]] |
 | кто клиенты, что им писать | [[clients/segments]] → [[marketing/channels]] |
 | где взять цифры | [[numbers/sources]] |
-| как мы раньше решали похожее | [[decisions/decisions]] |
+| как мы раньше решали похожее и что отвергали | [[decisions/decisions]] |
 | реквизиты, контакты, кто за что | [[business/about]], [[business/team]] |
 
 ## Разделы
